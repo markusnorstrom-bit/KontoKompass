@@ -1,0 +1,80 @@
+ame: Bygg KontoKompass Windows og Android
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+permissions:
+  contents: read
+jobs:
+  test-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Felles økonomimotor – tester
+        run: node --test tests/*.test.cjs
+  android:
+    needs: test-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Installer Android SDK
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Bygg debug-APK
+        run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KontoKompass-Android-debug-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Bygg valgfri release signert med egen nøkkel
+        env:
+          KEYSTORE_B64: ${{ secrets.KK_KEYSTORE_BASE64 }}
+          KONTOKOMPASS_STORE_PASSWORD: ${{ secrets.KK_STORE_PASSWORD }}
+          KONTOKOMPASS_KEY_ALIAS: ${{ secrets.KK_KEY_ALIAS }}
+          KONTOKOMPASS_KEY_PASSWORD: ${{ secrets.KK_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo 'Ingen egen release-nøkkel. Bare debug APK blir tilgjengelig.'
+            exit 0
+          fi
+          if [ -z "$KONTOKOMPASS_STORE_PASSWORD" ] || [ -z "$KONTOKOMPASS_KEY_ALIAS" ] || [ -z "$KONTOKOMPASS_KEY_PASSWORD" ]; then
+            echo 'Release-signering: noen GitHub Secrets mangler.'
+            exit 1
+          fi
+          trap 'rm -f "$RUNNER_TEMP/kontokompass-release.jks"' EXIT
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/kontokompass-release.jks"
+          export KONTOKOMPASS_STORE_FILE="$RUNNER_TEMP/kontokompass-release.jks"
+          gradle --no-daemon :app:assembleRelease
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('app/build/outputs/apk/release/app-release.apk') != '' }}
+        with:
+          name: KontoKompass-Android-release-APK
+          path: app/build/outputs/apk/release/app-release.apk
+  windows:
+    needs: test-core
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Pakk selvstendig Windows-program (x64)
+        shell: pwsh
+        run: dotnet publish windows/KontoKompass.Windows.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o windows-publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KontoKompass-Windows-x64-med-EXE
+          path: windows-publish/**
+          if-no-files-found: error
