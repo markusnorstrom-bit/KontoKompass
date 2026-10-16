@@ -71,6 +71,6 @@ Les [FUNKSJONSKARTLEGGING](docs/FUNKSJONSKARTLEGGING.md) for gjennomgang av regn
 - `KK_KEY_ALIAS`
 - `KK_KEY_PASSWORD`
 
-Prosjektets `.github/workflows/build.yml` forsøker deretter å produsere en release-APK. Du trenger å bevare **samme private nøkkel** for fremtidige installasjonsoppdateringer. Debug og release har ulike pakkenavn og deler ikke appdata. Ingen keystore følger med prosjektet.
+Prosjektets `.github/workflows/Build.yml` forsøker deretter å produsere en release-APK. Du trenger å bevare **samme private nøkkel** for fremtidige installasjonsoppdateringer. Debug og release har ulike pakkenavn og deler ikke appdata. Ingen keystore følger med prosjektet.
 
 **Ingen kvitteringer, faktura- eller kontoutskriftsfiler bør committes.**
