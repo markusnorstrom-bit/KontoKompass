@@ -1,4 +1,4 @@
-ame: Bygg KontoKompass Windows og Android
+name: Bygg KontoKompass Windows og Android
 on:
   workflow_dispatch:
   push:
